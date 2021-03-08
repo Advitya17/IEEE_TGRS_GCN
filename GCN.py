@@ -13,7 +13,7 @@ from tensorflow.python.framework import ops
 
 import random
 import threading
-import psutil, gputil
+import psutil, GPUtil
 from time import time
 import datetime
 
