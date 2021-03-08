@@ -21,35 +21,35 @@ def sample_mask(idx, l):
 
 def create_placeholders(n_x, n_x1, n_y):
 
-    isTraining = tf.placeholder_with_default(True, shape=())
-    x_in = tf.placeholder(tf.float32,  [None, n_x], name = "x_in")
-    x_in1 = tf.placeholder(tf.float32,  [None, n_x1], name = "x_in1")
-    y_in = tf.placeholder(tf.float32, [None, n_y], name = "y_in")
-    lap_train = tf.placeholder(tf.float32, [None, None], name = "lap_train")
+    isTraining = tf.compat.v1.placeholder_with_default(True, shape=())
+    x_in = tf.compat.v1.placeholder(tf.float32,  [None, n_x], name = "x_in")
+    x_in1 = tf.compat.v1.placeholder(tf.float32,  [None, n_x1], name = "x_in1")
+    y_in = tf.compat.v1.placeholder(tf.float32, [None, n_y], name = "y_in")
+    lap_train = tf.compat.v1.placeholder(tf.float32, [None, None], name = "lap_train")
     
     return x_in, x_in1, y_in, lap_train, isTraining
 
 def initialize_parameters():
    
-    tf.set_random_seed(1)
+    tf.compat.v1.set_random_seed(1)
 
-    x_w1 = tf.get_variable("x_w1", [200,128], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_b1 = tf.get_variable("x_b1", [128], initializer = tf.zeros_initializer())
+    x_w1 = tf.compat.v1.get_variable("x_w1", [200,128], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_b1 = tf.compat.v1.get_variable("x_b1", [128], initializer = tf.compat.v1.zeros_initializer())
 
-    x_jw1 = tf.get_variable("x_jw1", [128+128,128], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_jb1 = tf.get_variable("x_jb1", [128], initializer = tf.zeros_initializer())   
+    x_jw1 = tf.compat.v1.get_variable("x_jw1", [128+128,128], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_jb1 = tf.compat.v1.get_variable("x_jb1", [128], initializer = tf.compat.v1.zeros_initializer())   
     
-    x_jw2 = tf.get_variable("x_jw2", [128,16], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_jb2 = tf.get_variable("x_jb2", [16], initializer = tf.zeros_initializer())   
+    x_jw2 = tf.compat.v1.get_variable("x_jw2", [128,16], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_jb2 = tf.compat.v1.get_variable("x_jb2", [16], initializer = tf.compat.v1.zeros_initializer())   
     
-    x_conv_w1 = tf.get_variable("x_conv_w1", [3,3,200,32], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_conv_b1 = tf.get_variable("x_conv_b1", [32], initializer = tf.zeros_initializer())
+    x_conv_w1 = tf.compat.v1.get_variable("x_conv_w1", [3,3,200,32], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_conv_b1 = tf.compat.v1.get_variable("x_conv_b1", [32], initializer = tf.compat.v1.zeros_initializer())
 
-    x_conv_w2 = tf.get_variable("x_conv_w2", [3,3,32,64], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_conv_b2 = tf.get_variable("x_conv_b2", [64], initializer = tf.zeros_initializer())
+    x_conv_w2 = tf.compat.v1.get_variable("x_conv_w2", [3,3,32,64], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_conv_b2 = tf.compat.v1.get_variable("x_conv_b2", [64], initializer = tf.compat.v1.zeros_initializer())
 
-    x_conv_w3 = tf.get_variable("x_conv_w3", [1,1,64,128], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_conv_b3 = tf.get_variable("x_conv_b3", [128], initializer = tf.zeros_initializer())
+    x_conv_w3 = tf.compat.v1.get_variable("x_conv_w3", [1,1,64,128], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_conv_b3 = tf.compat.v1.get_variable("x_conv_b3", [128], initializer = tf.compat.v1.zeros_initializer())
     
     parameters = {"x_w1": x_w1,
                   "x_b1": x_b1,
@@ -77,30 +77,30 @@ def mynetwork(x, x1, parameters, Lap, isTraining, momentums = 0.9):
 
     x1 = tf.reshape(x1, [-1, 7, 7, 200], name = "x1")
     
-    with tf.name_scope("x_layer_1"):
+    with tf.compat.v1.name_scope("x_layer_1"):
 
-         x_z1_bn = tf.layers.batch_normalization(x, momentum = momentums, training = isTraining)        
+         x_z1_bn = tf.compat.v1.layers.batch_normalization(x, momentum = momentums, training = isTraining)        
          x_z1 = GCN_layer(x_z1_bn, Lap, parameters['x_w1']) + parameters['x_b1']
-         x_z1_bn = tf.layers.batch_normalization(x_z1, momentum = momentums, training = isTraining)
+         x_z1_bn = tf.compat.v1.layers.batch_normalization(x_z1, momentum = momentums, training = isTraining)
          x_a1 = tf.nn.relu(x_z1_bn)
 
-         x_conv_z1 = tf.nn.conv2d(x1, parameters['x_conv_w1'], strides=[1, 1, 1, 1], padding='SAME') + parameters['x_conv_b1'] 
-         x_conv_z1_bn = tf.layers.batch_normalization(x_conv_z1, momentum = momentums, training = isTraining)   
-         x_conv_z1_po = tf.layers.max_pooling2d(x_conv_z1_bn, 2, 2, padding='SAME')
+         x_conv_z1 = tf.nn.conv2d(input=x1, filters=parameters['x_conv_w1'], strides=[1, 1, 1, 1], padding='SAME') + parameters['x_conv_b1'] 
+         x_conv_z1_bn = tf.compat.v1.layers.batch_normalization(x_conv_z1, momentum = momentums, training = isTraining)   
+         x_conv_z1_po = tf.compat.v1.layers.max_pooling2d(x_conv_z1_bn, 2, 2, padding='SAME')
          x_conv_a1 = tf.nn.relu(x_conv_z1_po)
                  
-    with tf.name_scope("x_layer_2"):   
+    with tf.compat.v1.name_scope("x_layer_2"):   
 
-         x_conv_z2 = tf.nn.conv2d(x_conv_a1, parameters['x_conv_w2'], strides=[1, 1, 1, 1], padding='SAME') + parameters['x_conv_b2'] 
-         x_conv_z2_bn = tf.layers.batch_normalization(x_conv_z2, momentum = momentums, training = isTraining)
-         x_conv_z2_po = tf.layers.max_pooling2d(x_conv_z2_bn, 2, 2, padding='SAME')
+         x_conv_z2 = tf.nn.conv2d(input=x_conv_a1, filters=parameters['x_conv_w2'], strides=[1, 1, 1, 1], padding='SAME') + parameters['x_conv_b2'] 
+         x_conv_z2_bn = tf.compat.v1.layers.batch_normalization(x_conv_z2, momentum = momentums, training = isTraining)
+         x_conv_z2_po = tf.compat.v1.layers.max_pooling2d(x_conv_z2_bn, 2, 2, padding='SAME')
          x_conv_a2 = tf.nn.relu(x_conv_z2_po)
 
-    with tf.name_scope("x_layer_3"):
+    with tf.compat.v1.name_scope("x_layer_3"):
       
-         x_conv_z3 = tf.nn.conv2d(x_conv_a2, parameters['x_conv_w3'], strides=[1, 1, 1, 1], padding='SAME') + parameters['x_conv_b3'] 
-         x_conv_z3_bn = tf.layers.batch_normalization(x_conv_z3, momentum = momentums, training = isTraining)
-         x_conv_z3_po = tf.layers.max_pooling2d(x_conv_z3_bn, 2, 2, padding='SAME')
+         x_conv_z3 = tf.nn.conv2d(input=x_conv_a2, filters=parameters['x_conv_w3'], strides=[1, 1, 1, 1], padding='SAME') + parameters['x_conv_b3'] 
+         x_conv_z3_bn = tf.compat.v1.layers.batch_normalization(x_conv_z3, momentum = momentums, training = isTraining)
+         x_conv_z3_po = tf.compat.v1.layers.max_pooling2d(x_conv_z3_bn, 2, 2, padding='SAME')
          x_conv_a3 = tf.nn.relu(x_conv_z3_po)
          
          x_conv_a3_shape = x_conv_a3.get_shape().as_list()
@@ -108,13 +108,13 @@ def mynetwork(x, x1, parameters, Lap, isTraining, momentums = 0.9):
          
          joint_encoder_layer = tf.concat([x_a1, x_conv_z3_2d], 1)
 
-    with tf.name_scope("x_joint_layer_1"):
+    with tf.compat.v1.name_scope("x_joint_layer_1"):
         
          x_zj1 = tf.matmul(joint_encoder_layer, parameters['x_jw1']) + parameters['x_jb1']     
-         x_zj1_bn = tf.layers.batch_normalization(x_zj1, momentum = momentums, training = isTraining)                                 
+         x_zj1_bn = tf.compat.v1.layers.batch_normalization(x_zj1, momentum = momentums, training = isTraining)                                 
          x_aj1 = tf.nn.relu(x_zj1_bn)   
 
-    with tf.name_scope("x_layer_4"):
+    with tf.compat.v1.name_scope("x_layer_4"):
          x_zj2 = tf.matmul(x_aj1, parameters['x_jw2']) + parameters['x_jb2']     
                   
     l2_loss =  tf.nn.l2_loss(parameters['x_w1']) + tf.nn.l2_loss(parameters['x_jw1']) + tf.nn.l2_loss(parameters['x_jw2'])\
@@ -126,13 +126,13 @@ def mynetwork_optimaization(y_est, y_re, l2_loss, reg, learning_rate, global_ste
     
     y_re = tf.squeeze(y_re, name = 'y_re')
     
-    with tf.name_scope("cost"):
-         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = y_est, labels = y_re)) + reg * l2_loss
+    with tf.compat.v1.name_scope("cost"):
+         cost = tf.reduce_mean(input_tensor=tf.nn.softmax_cross_entropy_with_logits(logits = y_est, labels = tf.stop_gradient( y_re))) + reg * l2_loss
          
-    with tf.name_scope("optimization"):
-         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.compat.v1.name_scope("optimization"):
+         update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
-         optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost,  global_step=global_step)
+         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost,  global_step=global_step)
          optimizer = tf.group([optimizer, update_ops])
          
     return cost, optimizer
@@ -140,7 +140,7 @@ def mynetwork_optimaization(y_est, y_re, l2_loss, reg, learning_rate, global_ste
 def train_mynetwork(x_train, x_test, train_x, test_x, y_train, y_test, L_train, L_test, learning_rate_base = 0.001, beta_reg = 0.001, num_epochs = 200, minibatch_size = 32, print_cost = True):
     
     ops.reset_default_graph()    
-    tf.set_random_seed(1)                          
+    tf.compat.v1.set_random_seed(1)                          
     seed = 1                                                         
     (m, n_x) = x_train.shape
     (m, n_y) = y_train.shape
@@ -155,24 +155,24 @@ def train_mynetwork(x_train, x_test, train_x, test_x, y_train, y_test, L_train, 
 
     parameters = initialize_parameters()
     
-    with tf.name_scope("network"):
+    with tf.compat.v1.name_scope("network"):
          x_out, l2_loss = mynetwork(x_in, x_in1, parameters, lap_train, isTraining)
 
     global_step = tf.Variable(0, trainable=False)
-    learning_rate = tf.train.exponential_decay(learning_rate_base, global_step, 50 * m/minibatch_size, 0.5, staircase = True)
+    learning_rate = tf.compat.v1.train.exponential_decay(learning_rate_base, global_step, 50 * m/minibatch_size, 0.5, staircase = True)
     
-    with tf.name_scope("optimization"):
+    with tf.compat.v1.name_scope("optimization"):
          cost, optimizer = mynetwork_optimaization(x_out, y_in, l2_loss, beta_reg, learning_rate, global_step)
 
-    with tf.name_scope("metrics"):
-         joint_layerT = tf.transpose(x_out)
-         yT = tf.transpose(y_in)
-         correct_prediction = tf.equal(tf.argmax(joint_layerT), tf.argmax(yT))
-         accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+    with tf.compat.v1.name_scope("metrics"):
+         joint_layerT = tf.transpose(a=x_out)
+         yT = tf.transpose(a=y_in)
+         correct_prediction = tf.equal(tf.argmax(input=joint_layerT), tf.argmax(input=yT))
+         accuracy = tf.reduce_mean(input_tensor=tf.cast(correct_prediction, "float"))
          
-    init = tf.global_variables_initializer()
+    init = tf.compat.v1.global_variables_initializer()
     
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         
         sess.run(init)
 

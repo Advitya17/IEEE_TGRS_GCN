@@ -6,9 +6,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# import tensorflow as tf
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+import tensorflow as tf
+# tf.disable_eager_execution()
+tf.compat.v1.disable_eager_execution()
+# tf.disable_v2_behavior()
 
 import scipy.io as scio 
 import scipy.io as sio
@@ -20,6 +21,7 @@ import threading
 import psutil, GPUtil
 import time
 import datetime
+import pandas as pd
 
 ini_rc, ini_wc, ini_rb, ini_wb = psutil.disk_io_counters()[:4]
 ini_bs, ini_br = psutil.net_io_counters()[:2]
@@ -92,22 +94,22 @@ def convert_to_one_hot(Y, C):
 
 def create_placeholders(n_x, n_y):
 
-    isTraining = tf.placeholder_with_default(True, shape=())
-    x_in = tf.placeholder(tf.float32,  [None, n_x], name = "x_in")
-    y_in = tf.placeholder(tf.float32, [None, n_y], name = "y_in")
-    lap_train = tf.placeholder(tf.float32, [None, None], name = "lap_train")
+    isTraining = tf.compat.v1.placeholder_with_default(True, shape=())
+    x_in = tf.compat.v1.placeholder(tf.float32,  [None, n_x], name = "x_in")
+    y_in = tf.compat.v1.placeholder(tf.float32, [None, n_y], name = "y_in")
+    lap_train = tf.compat.v1.placeholder(tf.float32, [None, None], name = "lap_train")
     
     return x_in, y_in, lap_train, isTraining
 
 def initialize_parameters():
    
-    tf.set_random_seed(1) # tf.random.set_seed(1)
+    tf.compat.v1.set_random_seed(1) # tf.random.set_seed(1)
 
-    x_w1 = tf.get_variable("x_w1", [200,128], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_b1 = tf.get_variable("x_b1", [128], initializer = tf.zeros_initializer())
+    x_w1 = tf.compat.v1.get_variable("x_w1", [200,128], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_b1 = tf.compat.v1.get_variable("x_b1", [128], initializer = tf.compat.v1.zeros_initializer())
 
-    x_w2 = tf.get_variable("x_w2", [128,16], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_b2 = tf.get_variable("x_b2", [16], initializer = tf.zeros_initializer())    
+    x_w2 = tf.compat.v1.get_variable("x_w2", [128,16], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_b2 = tf.compat.v1.get_variable("x_b2", [16], initializer = tf.compat.v1.zeros_initializer())    
 
     
     parameters = {"x_w1": x_w1,
@@ -126,16 +128,16 @@ def GCN_layer(x_in, L_, weights):
 
 def mynetwork(x, parameters, Lap, isTraining, momentums = 0.9):
 
-    with tf.name_scope("x_layer_1"):
+    with tf.compat.v1.name_scope("x_layer_1"):
 
-         x_z1_bn = tf.layers.batch_normalization(x, momentum = momentums, training = isTraining)             
+         x_z1_bn = tf.compat.v1.layers.batch_normalization(x, momentum = momentums, training = isTraining)             
          x_z1 = GCN_layer(x_z1_bn, Lap, parameters['x_w1']) + parameters['x_b1']
-         x_z1_bn = tf.layers.batch_normalization(x_z1, momentum = momentums, training = isTraining)
+         x_z1_bn = tf.compat.v1.layers.batch_normalization(x_z1, momentum = momentums, training = isTraining)
          x_a1 = tf.nn.relu(x_z1_bn)      
          
-    with tf.name_scope("x_layer_3"):
+    with tf.compat.v1.name_scope("x_layer_3"):
         
-         x_z2_bn = tf.layers.batch_normalization(x_a1, momentum = momentums, training = isTraining)        
+         x_z2_bn = tf.compat.v1.layers.batch_normalization(x_a1, momentum = momentums, training = isTraining)        
          x_z2 = GCN_layer(x_z2_bn, Lap, parameters['x_w2']) + parameters['x_b2']         
 
     l2_loss =  tf.nn.l2_loss(parameters['x_w1']) + tf.nn.l2_loss(parameters['x_w2'])
@@ -146,28 +148,28 @@ def mynetwork_optimaization(y_est, y_re, l2_loss, reg, learning_rate, global_ste
     
     y_re = tf.squeeze(y_re, name = 'y_re')
     
-    with tf.name_scope("cost"):
-         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = y_est, labels = y_re)) +  reg * l2_loss
+    with tf.compat.v1.name_scope("cost"):
+         cost = tf.reduce_mean(input_tensor=tf.nn.softmax_cross_entropy_with_logits(logits = y_est, labels = tf.stop_gradient( y_re))) +  reg * l2_loss
          
-    with tf.name_scope("optimization"):
-         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.compat.v1.name_scope("optimization"):
+         update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
-         optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost,  global_step=global_step)
+         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost,  global_step=global_step)
          optimizer = tf.group([optimizer, update_ops])
          
     return cost, optimizer
 
 def network_accuracy(x_out, y_in):
     
-    correct_prediction = tf.equal(tf.argmax(x_out, 1), tf.argmax(y_in, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+    correct_prediction = tf.equal(tf.argmax(input=x_out, axis=1), tf.argmax(input=y_in, axis=1))
+    accuracy = tf.reduce_mean(input_tensor=tf.cast(correct_prediction, "float"))
          
     return accuracy
     
 def train_mynetwork(x_train, x_test, y_train, y_test, L_train, L_test, learning_rate_base = 0.001, beta_reg = 0.001, num_epochs = 200, minibatch_size = 32, print_cost = True):
     
     ops.reset_default_graph()    
-    tf.set_random_seed(1) # tf.random.set_seed(1)                 
+    tf.compat.v1.set_random_seed(1) # tf.random.set_seed(1)                 
     seed = 1                                                         
     (m, n_x) = x_train.shape
     (m, n_y) = y_train.shape
@@ -181,21 +183,21 @@ def train_mynetwork(x_train, x_test, y_train, y_test, L_train, L_test, learning_
 
     parameters = initialize_parameters()
     
-    with tf.name_scope("network"):
+    with tf.compat.v1.name_scope("network"):
          x_out, l2_loss = mynetwork(x_in, parameters, lap_train, isTraining)
 
     global_step = tf.Variable(0, trainable=False)
-    learning_rate = tf.train.exponential_decay(learning_rate_base, global_step, 50 * m/minibatch_size, 0.5, staircase = True)
+    learning_rate = tf.compat.v1.train.exponential_decay(learning_rate_base, global_step, 50 * m/minibatch_size, 0.5, staircase = True)
     
-    with tf.name_scope("optimization"):
+    with tf.compat.v1.name_scope("optimization"):
          cost, optimizer = mynetwork_optimaization(x_out, y_in, l2_loss, beta_reg, learning_rate, global_step)
 
-    with tf.name_scope("metrics"):
+    with tf.compat.v1.name_scope("metrics"):
          accuracy = network_accuracy(x_out, y_in)
 
-    init = tf.global_variables_initializer()
+    init = tf.compat.v1.global_variables_initializer()
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         
         sess.run(init)
       

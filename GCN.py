@@ -90,24 +90,24 @@ def sample_mask(idx, l):
 
 def create_placeholders(n_x, n_y):
 
-    isTraining = tf.placeholder_with_default(True, shape=())
-    x_in = tf.placeholder(tf.float32,  [None, n_x], name = "x_in")
-    y_in = tf.placeholder(tf.float32, [None, n_y], name = "y_in")
-    mask_train = tf.placeholder(tf.float32, name = "mask_train")
-    mask_test = tf.placeholder(tf.float32, name = "mask_test")
-    lap = tf.placeholder(tf.float32, [None, None], name = "lap")
+    isTraining = tf.compat.v1.placeholder_with_default(True, shape=())
+    x_in = tf.compat.v1.placeholder(tf.float32,  [None, n_x], name = "x_in")
+    y_in = tf.compat.v1.placeholder(tf.float32, [None, n_y], name = "y_in")
+    mask_train = tf.compat.v1.placeholder(tf.float32, name = "mask_train")
+    mask_test = tf.compat.v1.placeholder(tf.float32, name = "mask_test")
+    lap = tf.compat.v1.placeholder(tf.float32, [None, None], name = "lap")
     
     return x_in, y_in, lap, mask_train, mask_test, isTraining
 
 def initialize_parameters():
    
-    tf.set_random_seed(1) # tf.random.set_seed(1)
+    tf.compat.v1.set_random_seed(1) # tf.random.set_seed(1)
 
-    x_w1 = tf.get_variable("x_w1", [200,128], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_b1 = tf.get_variable("x_b1", [128], initializer = tf.zeros_initializer())
+    x_w1 = tf.compat.v1.get_variable("x_w1", [200,128], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_b1 = tf.compat.v1.get_variable("x_b1", [128], initializer = tf.compat.v1.zeros_initializer())
      
-    x_w2 = tf.get_variable("x_w2", [128,16], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    x_b2 = tf.get_variable("x_b2", [16], initializer = tf.zeros_initializer())
+    x_w2 = tf.compat.v1.get_variable("x_w2", [128,16], initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", seed = 1))
+    x_b2 = tf.compat.v1.get_variable("x_b2", [16], initializer = tf.compat.v1.zeros_initializer())
     
     
     parameters = {"x_w1": x_w1,
@@ -126,16 +126,16 @@ def GCN_layer(x_in, L_, weights):
 
 def mynetwork(x, parameters, Lap, isTraining, momentums = 0.9):
 
-    with tf.name_scope("x_layer_1"):
+    with tf.compat.v1.name_scope("x_layer_1"):
         
-         x_z1_bn = tf.layers.batch_normalization(x, momentum = momentums, training = isTraining)          
+         x_z1_bn = tf.compat.v1.layers.batch_normalization(x, momentum = momentums, training = isTraining)          
          x_z1 = GCN_layer(x_z1_bn, Lap, parameters['x_w1']) + parameters['x_b1']
-         x_z1_bn = tf.layers.batch_normalization(x_z1, momentum = momentums, training = isTraining)   
+         x_z1_bn = tf.compat.v1.layers.batch_normalization(x_z1, momentum = momentums, training = isTraining)   
          x_a1 = tf.nn.relu(x_z1_bn)     
 
-    with tf.name_scope("x_layer_2"):
+    with tf.compat.v1.name_scope("x_layer_2"):
          
-         x_z2_bn = tf.layers.batch_normalization(x_a1, momentum = momentums, training = isTraining)            
+         x_z2_bn = tf.compat.v1.layers.batch_normalization(x_a1, momentum = momentums, training = isTraining)            
          x_z2 = GCN_layer(x_z2_bn, Lap, parameters['x_w2']) + parameters['x_b2']         
          
     l2_loss =  tf.nn.l2_loss(parameters['x_w1']) + tf.nn.l2_loss(parameters['x_w2'])
@@ -144,30 +144,30 @@ def mynetwork(x, parameters, Lap, isTraining, momentums = 0.9):
 
 def mynetwork_optimaization(y_est, y_re, l2_loss, mask, reg, learning_rate, global_step):
     
-    with tf.name_scope("cost"):
-         cost = (tf.nn.softmax_cross_entropy_with_logits(logits = y_est, labels = y_re)) +  reg * l2_loss
+    with tf.compat.v1.name_scope("cost"):
+         cost = (tf.nn.softmax_cross_entropy_with_logits(logits = y_est, labels = tf.stop_gradient( y_re))) +  reg * l2_loss
          mask = tf.cast(mask, dtype = tf.float32)
-         mask /= tf.reduce_mean(mask)
+         mask /= tf.reduce_mean(input_tensor=mask)
          cost *= mask
-         cost = tf.reduce_mean(cost) +  reg * l2_loss
+         cost = tf.reduce_mean(input_tensor=cost) +  reg * l2_loss
          
-    with tf.name_scope("optimization"):
-         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.compat.v1.name_scope("optimization"):
+         update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
-         optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost,  global_step=global_step)
+         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost,  global_step=global_step)
          optimizer = tf.group([optimizer, update_ops])
          
     return cost, optimizer
 
 def masked_accuracy(preds, labels, mask):
 
-      correct_prediction = tf.equal(tf.argmax(preds, 1), tf.argmax(labels, 1))
+      correct_prediction = tf.equal(tf.argmax(input=preds, axis=1), tf.argmax(input=labels, axis=1))
       accuracy = tf.cast(correct_prediction, "float")
       mask = tf.cast(mask, dtype = tf.float32)
-      mask /= tf.reduce_mean(mask)
+      mask /= tf.reduce_mean(input_tensor=mask)
       accuracy *= mask
       
-      return tf.reduce_mean(accuracy)
+      return tf.reduce_mean(input_tensor=accuracy)
 
 def train_mynetwork(x_all, y_all, L_all, mask_in, mask_out, learning_rate = 0.001, beta_reg = 0.001, num_epochs = 200, print_cost = True):
     
@@ -184,21 +184,21 @@ def train_mynetwork(x_all, y_all, L_all, mask_in, mask_out, learning_rate = 0.00
 
     parameters = initialize_parameters()
     
-    with tf.name_scope("network"):
+    with tf.compat.v1.name_scope("network"):
          x_out, l2_loss = mynetwork(x_in, parameters, lap, isTraining)
 
     global_step = tf.Variable(0, trainable=False)
     
-    with tf.name_scope("optimization"):
+    with tf.compat.v1.name_scope("optimization"):
          cost, optimizer = mynetwork_optimaization(x_out, y_in, l2_loss, mask_train, beta_reg, learning_rate, global_step)
 
-    with tf.name_scope("metrics"):
+    with tf.compat.v1.name_scope("metrics"):
          accuracy_train = masked_accuracy(x_out, y_in, mask_train)
          accuracy_test= masked_accuracy(x_out, y_in, mask_test)
          
-    init = tf.global_variables_initializer()
+    init = tf.compat.v1.global_variables_initializer()
    
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         
         sess.run(init)
         # Do the training loop
