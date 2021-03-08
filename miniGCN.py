@@ -97,7 +97,7 @@ def create_placeholders(n_x, n_y):
 
 def initialize_parameters():
    
-    tf.random.set_seed(1) # tf.set_random_seed(1)
+    tf.set_random_seed(1) # tf.random.set_seed(1)
 
     x_w1 = tf.get_variable("x_w1", [200,128], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
     x_b1 = tf.get_variable("x_b1", [128], initializer = tf.zeros_initializer())
@@ -163,7 +163,7 @@ def network_accuracy(x_out, y_in):
 def train_mynetwork(x_train, x_test, y_train, y_test, L_train, L_test, learning_rate_base = 0.001, beta_reg = 0.001, num_epochs = 200, minibatch_size = 32, print_cost = True):
     
     ops.reset_default_graph()    
-    tf.random.set_seed(1) # tf.set_random_seed(1)                    
+    tf.set_random_seed(1) # tf.random.set_seed(1)                  
     seed = 1                                                         
     (m, n_x) = x_train.shape
     (m, n_y) = y_train.shape
