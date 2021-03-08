@@ -11,6 +11,76 @@ import scipy.io as sio
 from tf_utils import random_mini_batches, convert_to_one_hot
 from tensorflow.python.framework import ops
 
+import random
+import threading
+import psutil, gputil
+from time import time
+
+ini_rc, ini_wc, ini_rb, ini_wb = psutil.disk_io_counters()[:4]
+ini_bs, ini_br = psutil.net_io_counters()[:2]
+
+def sample_metrics(unit="MB"):
+    global ini_rc, ini_wc, ini_rb, ini_wb, ini_bs, ini_br
+
+    weight = 1
+    if unit == "MB":
+        weight = 1024 * 1024
+    elif unit == "GB":
+        weight = 1024 * 1024 * 1024
+    network_stat = psutil.net_io_counters()
+    disk_io_stat = psutil.disk_io_counters()
+    result = {
+        "time": str(datetime.datetime.utcnow()),
+        "cpu": psutil.cpu_percent(interval=1),
+        "mem": psutil.virtual_memory().used / weight,
+        "ram": psutil.virtual_memory().active / weight,
+        "disk": psutil.disk_usage("/").used / weight,
+        "disk_io": {
+            "rc": disk_io_stat[0] - ini_rc,
+            "wc": disk_io_stat[1] - ini_wc,
+            "rb": disk_io_stat[2] - ini_rb,
+            "wb": disk_io_stat[3] - ini_wb
+        },
+        "network": {
+            "sent": network_stat.bytes_sent / weight - ini_bs,
+            "recv": network_stat.bytes_recv / weight - ini_br
+        }
+    }
+    # if self._use_gpu:
+    gpus = GPUtil.getGPUs()
+    if len(gpus) > 0:
+        result["gpu load"] = gpus[0].load * 100
+        result["gpu memutil"] = gpus[0].memoryUtil * 100
+    return result
+
+def compute_metrics():
+    global running
+    running = True
+    currentProcess = psutil.Process()
+
+    lst = []
+    # start loop
+    while running:
+        # *measure/store all needed metrics*
+        lst.append(sample_metrics())
+        time.sleep(1)
+    df = pd.DataFrame(lst)
+    df.to_csv('hs_gcn_metrics.csv', index=False)
+
+def start():
+    global t
+    # create thread and start it
+    t = threading.Thread(target=compute_metrics)
+    t.start()
+
+def stop():
+    global running
+    global t
+    # use `running` to stop loop in thread so thread will end
+    running = False
+    # wait for thread's end
+    t.join()
+
 def sample_mask(idx, l):
     """Create mask."""
     mask = np.zeros(l)
@@ -166,21 +236,26 @@ def train_mynetwork(x_all, y_all, L_all, mask_in, mask_out, learning_rate = 0.00
     
         return parameters , val_acc, features
 
+if __name__ == '__main__':
+    start()
+    try:
+        ALL_X = scio.loadmat('HSI_GCN/ALL_X.mat')
+        ALL_Y = scio.loadmat('HSI_GCN/ALL_Y.mat')
+        ALL_L = scio.loadmat('HSI_GCN/ALL_L.mat')
 
-ALL_X = scio.loadmat('HSI_GCN/ALL_X.mat')
-ALL_Y = scio.loadmat('HSI_GCN/ALL_Y.mat')
-ALL_L = scio.loadmat('HSI_GCN/ALL_L.mat')
+        ALL_L = ALL_L['ALL_L']
+        ALL_X = ALL_X['ALL_X']
+        ALL_Y = ALL_Y['ALL_Y']
 
-ALL_L = ALL_L['ALL_L']
-ALL_X = ALL_X['ALL_X']
-ALL_Y = ALL_Y['ALL_Y']
+        GCN_mask_TR = sample_mask(np.arange(0,695), ALL_Y.shape[0])
+        GCN_mask_TE = sample_mask(np.arange(696,10366), ALL_Y.shape[0])
 
-GCN_mask_TR = sample_mask(np.arange(0,695), ALL_Y.shape[0])
-GCN_mask_TE = sample_mask(np.arange(696,10366), ALL_Y.shape[0])
-
-ALL_Y = convert_to_one_hot(ALL_Y - 1, 16)
-ALL_Y = ALL_Y.T
+        ALL_Y = convert_to_one_hot(ALL_Y - 1, 16)
+        ALL_Y = ALL_Y.T
 
 
-parameters, val_acc, features = train_mynetwork(ALL_X, ALL_Y, ALL_L.todense(), GCN_mask_TR, GCN_mask_TE)
-sio.savemat('features.mat', {'features': features})
+        parameters, val_acc, features = train_mynetwork(ALL_X, ALL_Y, ALL_L.todense(), GCN_mask_TR, GCN_mask_TE)
+        sio.savemat('features.mat', {'features': features})
+    finally:
+        stop()
+        
