@@ -11,6 +11,77 @@ import scipy.io as sio
 from tf_utils import random_mini_batches_GCN
 from tensorflow.python.framework import ops
 
+import random
+import threading
+import psutil, gputil
+from time import time
+import datetime
+
+ini_rc, ini_wc, ini_rb, ini_wb = psutil.disk_io_counters()[:4]
+ini_bs, ini_br = psutil.net_io_counters()[:2]
+
+def sample_metrics(unit="MB"):
+    global ini_rc, ini_wc, ini_rb, ini_wb, ini_bs, ini_br
+
+    weight = 1
+    if unit == "MB":
+        weight = 1024 * 1024
+    elif unit == "GB":
+        weight = 1024 * 1024 * 1024
+    network_stat = psutil.net_io_counters()
+    disk_io_stat = psutil.disk_io_counters()
+    result = {
+        "time": str(datetime.datetime.utcnow()),
+        "cpu": psutil.cpu_percent(interval=1),
+        "mem": psutil.virtual_memory().used / weight,
+        "ram": psutil.virtual_memory().active / weight,
+        "disk": psutil.disk_usage("/").used / weight,
+        "disk_io": {
+            "rc": disk_io_stat[0] - ini_rc,
+            "wc": disk_io_stat[1] - ini_wc,
+            "rb": disk_io_stat[2] - ini_rb,
+            "wb": disk_io_stat[3] - ini_wb
+        },
+        "network": {
+            "sent": network_stat.bytes_sent / weight - ini_bs,
+            "recv": network_stat.bytes_recv / weight - ini_br
+        }
+    }
+    # if self._use_gpu:
+    gpus = GPUtil.getGPUs()
+    if len(gpus) > 0:
+        result["gpu load"] = gpus[0].load * 100
+        result["gpu memutil"] = gpus[0].memoryUtil * 100
+    return result
+
+def compute_metrics():
+    global running
+    running = True
+    currentProcess = psutil.Process()
+
+    lst = []
+    # start loop
+    while running:
+        # *measure/store all needed metrics*
+        lst.append(sample_metrics())
+        time.sleep(1)
+    df = pd.DataFrame(lst)
+    df.to_csv('hs_minigcn_metrics.csv', index=False)
+
+def start():
+    global t
+    # create thread and start it
+    t = threading.Thread(target=compute_metrics)
+    t.start()
+
+def stop():
+    global running
+    global t
+    # use `running` to stop loop in thread so thread will end
+    running = False
+    # wait for thread's end
+    t.join()
+
 def convert_to_one_hot(Y, C):
     Y = np.eye(C)[Y.reshape(-1)].T
     return Y
@@ -181,28 +252,33 @@ def train_mynetwork(x_train, x_test, y_train, y_test, L_train, L_test, learning_
        
         return parameters, val_acc, features
 
-
-Train_X = scio.loadmat('HSI_GCN/Train_X.mat')
-TrLabel = scio.loadmat('HSI_GCN/TrLabel.mat')
-Test_X = scio.loadmat('HSI_GCN/Test_X.mat')
-TeLabel = scio.loadmat('HSI_GCN/TeLabel.mat')
-Train_L = scio.loadmat('HSI_GCN/Train_L.mat')
-Test_L = scio.loadmat('HSI_GCN/Test_L.mat')
-
-
-Train_X = Train_X['Train_X']
-Test_X = Test_X['Test_X']
-TrLabel = TrLabel['TrLabel']
-TeLabel = TeLabel['TeLabel']
-
-Train_L = Train_L['Train_L']
-Test_L = Test_L['Test_L']
-
-TrLabel = convert_to_one_hot(TrLabel-1, 16)
-TrLabel = TrLabel.T
-TeLabel = convert_to_one_hot(TeLabel-1, 16)   
-TeLabel = TeLabel.T
+if __name__ == '__main__':
+    start()
+    try:
+        Train_X = scio.loadmat('HSI_GCN/Train_X.mat')
+        TrLabel = scio.loadmat('HSI_GCN/TrLabel.mat')
+        Test_X = scio.loadmat('HSI_GCN/Test_X.mat')
+        TeLabel = scio.loadmat('HSI_GCN/TeLabel.mat')
+        Train_L = scio.loadmat('HSI_GCN/Train_L.mat')
+        Test_L = scio.loadmat('HSI_GCN/Test_L.mat')
 
 
-parameters, val_acc, features = train_mynetwork(Train_X, Test_X, TrLabel, TeLabel, Train_L, Test_L)
-sio.savemat('features.mat', {'features': features})
+        Train_X = Train_X['Train_X']
+        Test_X = Test_X['Test_X']
+        TrLabel = TrLabel['TrLabel']
+        TeLabel = TeLabel['TeLabel']
+
+        Train_L = Train_L['Train_L']
+        Test_L = Test_L['Test_L']
+
+        TrLabel = convert_to_one_hot(TrLabel-1, 16)
+        TrLabel = TrLabel.T
+        TeLabel = convert_to_one_hot(TeLabel-1, 16)   
+        TeLabel = TeLabel.T
+
+
+        parameters, val_acc, features = train_mynetwork(Train_X, Test_X, TrLabel, TeLabel, Train_L, Test_L)
+        sio.savemat('features.mat', {'features': features})
+    finally:
+        stop()
+        
