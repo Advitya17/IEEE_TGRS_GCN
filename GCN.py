@@ -15,6 +15,7 @@ import random
 import threading
 import psutil, gputil
 from time import time
+import datetime
 
 ini_rc, ini_wc, ini_rb, ini_wb = psutil.disk_io_counters()[:4]
 ini_bs, ini_br = psutil.net_io_counters()[:2]
