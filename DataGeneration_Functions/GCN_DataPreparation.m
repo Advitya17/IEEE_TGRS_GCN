@@ -41,6 +41,6 @@ ALL_X = X';
 ALL_Y = Y';
 
 %% Please replace the following route with your own one
-save('../../HSI_GCN/ALL_X.mat','ALL_X');
-save('../../HSI_GCN/ALL_Y.mat','ALL_Y');
-save('../../HSI_GCN/ALL_L.mat','ALL_L');
+save('../HSI_GCN/ALL_X.mat','ALL_X');
+save('../HSI_GCN/ALL_Y.mat','ALL_Y');
+save('../HSI_GCN/ALL_L.mat','ALL_L');
